@@ -127,7 +127,7 @@ app.layout = html.Div([
         options=[
             {'label': 'all', 'value': 'All'}
             ] + [{'label': v.lower(), 'value': v} for v in
-                [str(k)+": "+n["label"].replace("\n","") if "label" in n else str(k) for k, n in G.nodes.items()]],
+                [str(k)+": "+n["label"].replace("\n","") if "label" in n else str(k) for k, n in sorted(G.nodes.items())]],
         value='All'
         ),
     dcc.Graph(
