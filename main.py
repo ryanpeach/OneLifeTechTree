@@ -13,12 +13,6 @@ def get_kv(o, kwrds=["parent"]):
     with f.open() as o:
         yield "id", int(o.readline().split("=")[1].replace("\n",""))
         yield "name", o.readline().replace("\n","")
-        for l in o:
-            for p in l.split(","):
-                for k in kwrds:
-                    if k in p:
-                        p1, p2 = p.split("=")
-                        yield p1, p2.replace("\n","")
 
 # Make a dictionary of name, id, and parent
 for i, f in fdict.items():
@@ -28,13 +22,22 @@ for i, f in fdict.items():
     out_dict["file"] = fdict[_id]
     fdict[_id] = out_dict
 
-# Go through the object dictionary
-import dash
-from dash.dependencies import Input, Output
-import dash_core_components as dcc
-import dash_html_components as html
-import plotly.plotly as py
-from plotly.graph_objs import *
+# Transitions
+tfiles = list(Path("./transitions/").glob("*.txt"))
+tdict = {}
+for f in tfiles:
+    i = f.stem
+    a, b, *args = i.split("_")
+    tdict[i] = {"a":int(a), "b":int(b), "args":args, "file":f}
+    with f.open() as o:
+        l = o.readline()
+        tout = []
+        for t in l.split(" "):
+            try:
+                tout.append(int(t))
+            except:
+                tout.append(float(t))
+        tdict[i]["numbers"] = tout
 
 G = nx.DiGraph()
 
@@ -42,9 +45,19 @@ for k, v in fdict.items():
     if int(k) != -1:
         G.add_node(int(k), label=str(v["name"])+" \n")
 
-for k, v in fdict.items():
-    if int(k) != -1 and int(v["parent"]) != -1:
-        G.add_edge(int(v["parent"]), k)
+for k, v in tdict.items():
+    if v["a"] > 0 and v["numbers"][1] > 0:
+        G.add_edge(v["a"], v["numbers"][1])
+    if v["b"] > 0 and v["numbers"][1] > 0:
+        G.add_edge(v["b"], v["numbers"][1])
+
+# Go through the object dictionary
+import dash
+from dash.dependencies import Input, Output
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly.plotly as py
+from plotly.graph_objs import *
 
 def gen_fig(G):
     pos = nx.kamada_kawai_layout(G)
