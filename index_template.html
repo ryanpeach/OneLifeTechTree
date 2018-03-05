@@ -1,0 +1,32 @@
+<html>
+<head>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>One Hour One Life Tech Tree</h1>
+
+    <div id="selection">
+        <p id="selection_label"> Select an item:</p>
+        <select id="dropdownSelect" onchange="changeFunction()">
+            <option value="all">All</option>
+        </select>
+    </div>
+
+    <div id="instructions">Drag to Zoom.</div>
+
+    <div class=embedded>
+        <iframe id="frame" src="./html_out/all.html" width="100%" height="100%" frameBorder="0"></iframe>
+        <script type="text/javascript">
+            var select = document.getElementById("dropdownSelect");
+            var frame = document.getElementById("frame");
+            function changeFunction() {
+                var sel = select.options[select.selectedIndex];
+                var val_opt = sel.value;
+                var txt_opt = sel.text;
+                frame.src = "./html_out/"+val_opt+".html"
+            }
+        </script>
+    </div>
+
+</body>
+</html>

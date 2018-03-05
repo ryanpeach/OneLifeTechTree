@@ -1,0 +1,5 @@
+body, html {width: 100%; height: 100%; margin: 0; padding: 0; text-align: center;}
+.frame {overflow: hidden; height: 100%; width: 100%}
+.dropdownSelect {width:100%; height: 32px;}
+h1 {padding-top: 10px;}
+
