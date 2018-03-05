@@ -68,6 +68,13 @@ for i, (k, v) in enumerate(tdict.items()):
         if d > 0 and b != d and a != d:
             G.add_edge(b, d, color=i)
 
+# Calculate a position for all the nodes in G
+pos = nx.kamada_kawai_layout(G)
+
+for n in G.nodes():
+    G.nodes[n]["x"] = pos[n][0]
+    G.nodes[n]["y"] = pos[n][1]
+
 # Web Interface
 import dash
 from dash.dependencies import Input, Output
@@ -78,8 +85,8 @@ from plotly.graph_objs import *
 
 # Generates a figure based on a graph
 def gen_fig(G, source=None, depth=0):
-    # Calculate a position for all the nodes in G
-    pos = nx.kamada_kawai_layout(G)
+    # Easier for compatibility
+    pos = {n: (G.nodes[n]["x"], G.nodes[n]["y"]) for n in G.nodes()}
 
     # Create Edge Lines
     # By first creating a plotly scatter plot
@@ -125,7 +132,7 @@ def gen_fig(G, source=None, depth=0):
                          size=10,
                          colorbar=dict(
                              thickness=15,
-                             title='Node Connections',
+                             title='Node Distance',
                              xanchor='left',
                              titleside='right'
                          ),
@@ -255,6 +262,13 @@ def get_subgraph(source):
 
         get_distances(G0, n)
 
+        # Calculate a position for all the nodes in G
+        pos = nx.kamada_kawai_layout(G0)
+
+        for n in G0.nodes():
+            G0.nodes[n]["x"] = pos[n][0]
+            G0.nodes[n]["y"] = pos[n][1]
+
         # Add to memoization
         ALL_G[source] = G0
 
@@ -268,8 +282,8 @@ def update_slider_indicator(new_value):
 
 @app.callback(Output(component_id='depth-slider', component_property='marks'),
               [Input(component_id='depth-slider', component_property='max')])
-def update_ticks(new_max):
-    return {int(float(i)/4.*new_max): str(int(float(i)/4.*new_max)) for i in range(4)}
+def update_ticks(new_max, n=5):
+    return {int(float(i)/float(n-1)*new_max): str(int(float(i)/float(n-1)*new_max)) for i in range(n)}
 
 @app.callback(Output(component_id='depth-slider', component_property='disabled'),
               [Input(component_id='depth-slider', component_property='max')])
@@ -310,4 +324,4 @@ def update_slider(node_selection):
 
 # Server Execution
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)

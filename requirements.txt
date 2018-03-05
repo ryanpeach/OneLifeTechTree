@@ -1,9 +1,9 @@
-dash==0.21.0
-dash-renderer==0.11.3
-dash-html-components==0.9.0
-dash-core-components==0.18.1
-plotly
-numpy
-networkx
-scipy
+dash>=0.21.0
+dash-renderer>=0.11.3
+dash-html-components>=0.9.0
+dash-core-components>=0.18.1
+plotly>=2.4.1
+numpy>=1.14.0
+networkx>=2.1
+scipy>=1.0.0
 
