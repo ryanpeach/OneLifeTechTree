@@ -1,5 +1,6 @@
 import networkx as nx
 from pathlib import Path
+import sys
 
 # Objects
 # First, let's import object files
@@ -53,11 +54,19 @@ for k, v in fdict.items():
 
 # Add Edges based on A, B, and D
 # A + B = D (simplistic, may not be correct)
-for k, v in tdict.items():
-    if v["a"] > 0 and v["numbers"][1] > 0:
-        G.add_edge(v["a"], v["numbers"][1])
-    if v["b"] > 0 and v["numbers"][1] > 0:
-        G.add_edge(v["b"], v["numbers"][1])
+for i, (k, v) in enumerate(tdict.items()):
+    a, b, c, d = v["a"],v["b"], v["numbers"][0], v["numbers"][1]
+    params = {a,b,c,d}
+    if a > 0:
+        if c > 0 and a != c and b != c:
+            G.add_edge(a, c, color=i)
+        if d > 0 and a != d and b != d:
+            G.add_edge(a, d, color=i)
+    if b > 0:
+        if c > 0 and b != c and a != c:
+            G.add_edge(b, c, color=i)
+        if d > 0 and b != d and a != d:
+            G.add_edge(b, d, color=i)
 
 # Web Interface
 import dash
@@ -68,7 +77,7 @@ import plotly.plotly as py
 from plotly.graph_objs import *
 
 # Generates a figure based on a graph
-def gen_fig(G):
+def gen_fig(G, source=None, depth=0):
     # Calculate a position for all the nodes in G
     pos = nx.kamada_kawai_layout(G)
 
@@ -77,16 +86,28 @@ def gen_fig(G):
     edge_trace = Scatter(
                          x=[],
                          y=[],
-                         line=Line(width=0.5,color='#888'),
+                         line=Line(width=0.5,
+                                   color=[]),
                          hoverinfo='none',
                          mode='lines')
 
     # And adding all the edge positions to it
-    for edge in G.edges():
+    def add_edge(edge):
         x0, y0 = pos[edge[0]]
         x1, y1 = pos[edge[1]]
         edge_trace['x'] += [x0, x1, None]
         edge_trace['y'] += [y0, y1, None]
+
+    for edge in G.edges():
+        n0, n1 = G.nodes[edge[0]], G.nodes[edge[1]]
+        if depth > 0:
+            if n0["d"] <= depth and n1["d"] <= depth:
+                add_edge(edge)
+        else:
+            add_edge(edge)
+
+        # print(edge_trace['line']['color'])
+        #.append(G.edges[edge]['color'])
 
     # Create Nodes
     # By first creating a plotly scatter plot
@@ -113,13 +134,24 @@ def gen_fig(G):
                      )
 
     # And adding all the node positions to it
-    for node in G.nodes():
+    def add_node(node):
         x, y = pos[node]
         node_trace['x'].append(x)
         node_trace['y'].append(y)
-        
+
         # Also adding text for these nodes
         node_trace['text'].append(G.nodes[node]["label"].replace("\n","") if "label" in G.nodes[node] else str(node))
+
+        if source is not None:
+            depth = G.nodes[node]['d']
+            node_trace['marker']['color'].append(depth)
+
+    for node in G.nodes():
+        if depth > 0:
+            if G.nodes[node]["d"] <= depth:
+                add_node(node)
+        else:
+            add_node(node)
 
     # Create the plotly figure combining on edge_trace and node_trace
     fig = Figure(data=Data([edge_trace, node_trace]),
@@ -136,7 +168,7 @@ def gen_fig(G):
                                     x=0.005, y=-0.002 ) ],
                  xaxis=XAxis(showgrid=False, zeroline=False, showticklabels=False),
                  yaxis=YAxis(showgrid=False, zeroline=False, showticklabels=False)))
-    
+
     # Return the figure
     return fig
 
@@ -144,41 +176,137 @@ def gen_fig(G):
 app = dash.Dash()
 
 # Give it a Title, a selection Dropdown, and a Graph
+margin_size, margin_size_lr = 10, 10
 app.layout = html.Div([
     html.H1('One Hour One Life Tech Tree'),
-    dcc.Dropdown(
-        id='node-selection',
-        options=[
-            {'label': 'all', 'value': 'All'}
-            ] + [{'label': v.lower(), 'value': v} for v in
-                [str(k)+": "+n["label"].replace("\n","") if "label" in n else str(k) for k, n in sorted(G.nodes.items())]],
-        value='All'
-        ),
+    html.Div([
+
+        dcc.Dropdown(
+            id='node-selection',
+            options=[
+                {'label': 'all', 'value': 'All'}
+                ] + [{'label': v.lower(), 'value': v} for v in
+                    [str(k)+": "+n["label"].replace("\n","") if "label" in n else str(k) for k, n in sorted(G.nodes.items())]],
+            value='All'
+        )],
+        style={'marginBottom': margin_size, 'marginTop': margin_size}
+    ),
+
+    html.Table([
+        html.Tr([
+                html.Td("Depth: ",
+                        style={"padding-right": margin_size_lr}),
+
+                html.Td(
+                    dcc.Slider(
+                        id="depth-slider",
+                        min=0,
+                        max=0,
+                        disabled=True,
+                        marks={},
+                        value=0,
+                    ),
+                    style={'width':'90%'}
+                    ),
+
+                html.Td(
+                    dcc.Input(
+                        id="depth-slider-indicator",
+                        value='0',
+                        type='text',
+                        readonly=True,
+                    ),
+                    style={"padding-left": margin_size_lr,
+                           "width": "10%"}
+                    ),
+                ])],
+        style={'marginBottom': margin_size}
+    ),
+
     dcc.Graph(
         id='tech-graph',
         figure = gen_fig(G)  # The default graph uses the entire tree
     )
 ])
 
+
+sys.setrecursionlimit(len(G)+1)
+def get_distances(G, source, d=0):
+    G.nodes[source]["d"] = d
+    for n in list(G.predecessors(source)):
+        if "d" not in G.nodes[n]:
+            get_distances(G, n, d=d+1)
+        else:
+            G.remove_edge(n, source)
+
+
+ALL_G = {}  # For memoization
+def get_subgraph(source):
+
+    # Memoize source
+    if source in ALL_G:
+        return ALL_G[source]
+
+    else:
+        n = int(source.split(":")[0])  # The node id is passed via the first element of the string
+        s = nx.ancestors(G,n)          # We get the set of ancestor node id's
+        s.add(n)                       # We add the current node id
+        G0 = G.subgraph(s).copy()      # We get the subgraph of these nodes
+
+        get_distances(G0, n)
+
+        # Add to memoization
+        ALL_G[source] = G0
+
+        return G0
+
+
+@app.callback(Output(component_id='depth-slider-indicator', component_property='value'),
+              [Input(component_id='depth-slider', component_property='value')])
+def update_slider_indicator(new_value):
+    return str(new_value)
+
+@app.callback(Output(component_id='depth-slider', component_property='marks'),
+              [Input(component_id='depth-slider', component_property='max')])
+def update_ticks(new_max):
+    return {int(float(i)/4.*new_max): str(int(float(i)/4.*new_max)) for i in range(4)}
+
+@app.callback(Output(component_id='depth-slider', component_property='disabled'),
+              [Input(component_id='depth-slider', component_property='max')])
+def enable_slider(new_max):
+    if new_max > 0:
+        return False
+    else:
+        return True
+
 # The selection dropdown will update the graph by showing only the ancestors of the given node
 @app.callback(
               Output(component_id='tech-graph', component_property='figure'),
-              [Input(component_id='node-selection', component_property='value')]
+              [Input(component_id='node-selection', component_property='value'),
+               Input(component_id='depth-slider', component_property='value')]
               )
-def update_plot(node_selection):
+def update_plot(node_selection, depth_slider):
     # The default selection is all the data
     if node_selection.lower() == "all":
-        G0 = G
-        
+        return gen_fig(G)
+
     # For all other selections
     else:
+        G0 = get_subgraph(node_selection)
         n = int(node_selection.split(":")[0])  # The node id is passed via the first element of the string
-        s = nx.ancestors(G,n)                  # We get the set of ancestor node id's
-        s.add(n)                               # We add the current node id
-        G0 = G.subgraph(s)                     # We get the subgraph of these nodes
-        
-    # Get the new figure with gen_fig and return it to Dash Graph
-    return gen_fig(G0)
+        return gen_fig(G0, source=n, depth=depth_slider)
+
+
+@app.callback(Output(component_id='depth-slider', component_property='max'),
+              [Input(component_id='node-selection', component_property='value')])
+def update_slider(node_selection):
+    if node_selection.lower() == "all":
+        return 0
+
+    else:
+        G0 = get_subgraph(node_selection)
+        return max([G0.nodes[n]['d'] for n in G0.nodes() if "d" in G0.nodes[n]])
+
 
 # Server Execution
 if __name__ == '__main__':

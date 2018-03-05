@@ -5,4 +5,5 @@ dash-core-components==0.18.1
 plotly
 numpy
 networkx
+scipy
 
