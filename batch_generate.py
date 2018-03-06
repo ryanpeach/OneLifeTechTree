@@ -5,6 +5,7 @@ import os, shutil
 import bs4
 
 OUTPATH = "./html_out/"
+PLOT = True
 
 # Delete all files in directory and remake directory
 if os.path.exists(OUTPATH):
@@ -31,8 +32,9 @@ for n in tqdm(list(sorted(list(G.nodes())))):
     options.append(t)
 
     # Save Figure
-    fig = gen_fig(get_subgraph(str(n)), n, title=title)
-    plotly.offline.plot(fig, filename=OUTPATH + "{}.html".format(n), auto_open=False)
+    if PLOT:
+        fig = gen_fig(get_subgraph(str(n)), n, title=title)
+        plotly.offline.plot(fig, filename=OUTPATH + "{}.html".format(n), auto_open=False)
 
 
 # Save to index
